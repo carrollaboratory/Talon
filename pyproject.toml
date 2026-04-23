@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "talon"
+description = "Tools to programmatically interact with the underlying Map Dragon API"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+
+dependencies = [
+    "requests",
+    "rich",
+    "PyYAML"]
+
+dynamic = ["version"]
+
+[tool.setuptools_scm]
+version_file = "src/talon/_version.py"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]  # list of folders that contain the packages (["."] by default)
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml"]
+
+[project.scripts]
+talon = "talon.talon:exec"
