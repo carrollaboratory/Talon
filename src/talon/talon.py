@@ -80,22 +80,33 @@ def exec(args: list[str] | None = None):
     args.host_config = host_config
     init_logging(args.log_level)
 
-    print(args.log_level)
+    # Make sure we aren't provided both a host and a URL
     if hasattr(args, "host"):
         apiurl = host_config["hosts"][args.host]
 
         if args.md_url is not None:
             logging.error("Provide either --md-url or --host. Refusing to proceed")
             sys.exit(1)
-
     else:
         apiurl = args.md_url
+
+    # These applications do require an endpoint to work with, so verify
+    # that the information does exist
+    if not hasattr(args, "host") and args.md_url is None:
+        logging.error(
+            f"You must provide either the API URL or a configured host to proceed"
+        )
+        if len(args.host_config["hosts"]) > 0:
+            logging.error(
+                f"Available hosts include: {', '.join(args.host_config['hosts'].keys())}"
+            )
+        sys.exit(1)
 
     locu = Locu(apiurl)
 
     if host_config.get("missing_host_config"):
-        logging.error(
-            f"The host configuration, {host_config.get('missing_host_config')}, is missing."
+        logging.warn(
+            f"The host configuration, {host_config.get('missing_host_config')}, is missing. This file is intended to make runs less prone to mistake."
         )
 
     # Now, we run the command the user selected

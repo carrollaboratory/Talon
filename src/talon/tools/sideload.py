@@ -42,15 +42,6 @@ def add_arguments(subparsers):
 
 
 def exec(args, locu):
-    if not hasattr(args, "host") and args.md_url is None:
-        logging.error(
-            f"You must provide either the API URL or a configured host to proceed"
-        )
-        if len(args.host_config["hosts"]) > 0:
-            logging.error(
-                f"Available hosts include: {', '.join(args.host_config['hosts'].keys())}"
-            )
-        sys.exit(1)
 
     for csv in args.mappings:
         linecount = sideload_csv(locu, csv, args.editor)
