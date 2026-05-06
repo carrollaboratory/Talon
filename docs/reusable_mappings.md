@@ -25,3 +25,48 @@ that match the curated mapping list will be loaded with those mapping in tact.
 Any mapping that is deemed undesirable should be marked "True" under ignore 
 so that subsequent refreshes won't try to add it back if it were deleted. 
 Any mappings marked to be ignored will simply be ignored.
+
+# Project Directory
+When running the **refresh** command, it expects a **project** directory. This
+is simply a location where all of the relevant files are written. The default
+name for this directory is **curated** within the current working directory, but
+can be any path name that can be written to by the user. 
+
+## Project Files
+Inside the project directory there will be a handful of files/directories:
+
+| File/Folder | Purpose | Note | 
+| ----------- | ------- | ---- | 
+| mappings.csv | This file contains the curated mappings. | Users can edit this file however they wish. However, it is worth noting that Excel will lock files and the script will fail if it is still open in excel when it is trying to read or write to the file |
+| errors.yaml | This is the most recent error report from the **refresh** command. | | 
+| backup | This directory contains a backup of the mappings.csv file just as it was before writing any new mappings to it. | |
+
+## Merge Conflicts 
+When you pull new data from MapDragon, if a value with the same **source_text**
+is found with the same **mapped_code**, it will indicate what sort of conflicts
+were encountered. For instance, if the local copy had the display for a given 
+mapping changed, it may show up as follows: 
+
+```yaml
+- mapped_display:
+    CSV Value: Increased subcutaneous truncal adipose tissue-Updated Display
+    MD Value: Increased subcutaneous truncal adipose tissue
+    MD Line: adipose_subcutaneous,HP:0009003,Increased subcutaneous truncal adipose tissue,http://purl.obolibrary.org/obo/hp.owl,False
+```
+### Remedying Conflicts
+Right now, there is no graceful mechanism for merging conflicted entries in. It
+is expected to be done on a line-by-line basis by the curator. 
+
+To do so, curators can simply grab the contents from the desired "MD Line" and 
+paste over the relevant lines in the local CSV copy to officially accept a 
+conflicted entry. 
+
+# Mappings Format
+
+| Column Name | Description | 
+| ----------- | ----------- | 
+| source_text | Text used to match either **variable name** or **enumerated value** in the incoming data-dictionary |
+| mapped_code | The code associated with the mapped value |
+| mapped_display | The display associated with the mapped value |
+| mapped_system | The system associated with the mapped value |
+| ignore | If the value here is True (case insensitive) the mapping will not be used |
