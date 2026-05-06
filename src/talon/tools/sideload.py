@@ -1,4 +1,5 @@
 __name__ = "sideload"
+__summary__ = "Load mappings into a mapdragon instance using the API"
 __description__ = "Load mappings into a mapdragon instance using the API"
 
 import logging
@@ -27,7 +28,9 @@ def sideload_csv(locu: Locu, csvfile: TextIO, editor: str):
 
 
 def add_arguments(subparsers):
-    local_parser = subparsers.add_parser(__name__, help=__description__)
+    local_parser = subparsers.add_parser(
+        __name__, help=__summary__, description=__description__
+    )
 
     local_parser.add_argument(
         "-e", "--editor", type=str, required=True, help="The user submitting the job"
