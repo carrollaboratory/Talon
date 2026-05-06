@@ -58,3 +58,5 @@ Users can provide either the Map Dragon URL or the locutus 'api' path (if you ar
 
 # Available Commands
 - [sideload](sideload.md)
+- [Resuable Mappings](reusable_mappings.md)
+  - [refresh](refresh.md)
