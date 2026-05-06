@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
 
 from .. import Locu
+from . import pull_harmony_content
 
 
 def export_harmony(
@@ -23,21 +24,9 @@ def export_harmony(
     replacecontent: bool = False,
 ):
 
-    if len(study_ids) + len(dd_ids) + len(table_ids) < 1:
-        logging.error(
-            "This requires at least one Study ID, Data Dictionary ID or Table ID to continue."
-        )
-        sys.exit(1)
-
-    arglist = [f"format={format}"]
-    if len(study_ids) > 0:
-        arglist.append(f"studies={','.join(study_ids)}")
-    if len(table_ids) > 0:
-        arglist.append(f"tables={','.join(table_ids)}")
-    if len(dd_ids) > 0:
-        arglist.append(f"datadictionaries={','.join(dd_ids)}")
-
-    harmony_content = locu.get(f"harmony?{'&'.join(arglist)}")
+    harmony_content = pull_harmony_content(
+        locu, study_ids=study_ids, dd_ids=dd_ids, table_ids=table_ids, format=format
+    )
     mappings = [Mapping.from_dict(item) for item in harmony_content]
 
     if replacecontent:
@@ -93,8 +82,6 @@ class Mapping:
 
         extra_fields = input_keys - class_fields
 
-        print(data)
-        print(filtered_data)
         return MappingResults(mapping=cls(**filtered_data), dropped=extra_fields)
 
     def writerow(self, writer: TextIO):

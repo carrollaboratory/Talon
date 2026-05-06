@@ -2,6 +2,9 @@ import importlib
 import pdb
 import sys
 from pathlib import Path
+from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
+
+from .. import Locu
 
 # First, let's collect all of our tools so that we can add them to our kit
 
@@ -21,3 +24,22 @@ def load_tools():
         tool_lib = importlib.import_module(f"talon.tools.{toolname}")
         tools[tool_lib.__name__] = tool_lib
     return tools
+
+
+def pull_harmony_content(
+    locu: Locu,
+    study_ids: List[str] = [],
+    dd_ids: List[str] = [],
+    table_ids: List[str] = [],
+    format: str = "FTD",
+) -> Dict[str, Any]:
+    """Return the harmony content in dict format"""
+    arglist = [f"format={format}"]
+    if len(study_ids) > 0:
+        arglist.append(f"studies={','.join(study_ids)}")
+    if len(table_ids) > 0:
+        arglist.append(f"tables={','.join(table_ids)}")
+    if len(dd_ids) > 0:
+        arglist.append(f"datadictionaries={','.join(dd_ids)}")
+
+    return locu.get(f"harmony?{'&'.join(arglist)}")
