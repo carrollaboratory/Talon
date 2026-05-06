@@ -14,7 +14,8 @@ classifiers = [
 dependencies = [
     "requests",
     "rich",
-    "PyYAML"]
+    "PyYAML",
+    "xxhash"]
 
 dynamic = ["version"]
 
