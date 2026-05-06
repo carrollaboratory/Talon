@@ -1,5 +1,6 @@
 __name__ = "refresh"
-__description__ = "Curate mapping content for reuse"
+__summary__ = "Curate mapping content for reuse"
+__description__ = "Pull mapping contents from a MapDragon instance to curate a local copy of reusable mappings"
 
 """
 This script allows for downloading content from Map Dragon for curation.
@@ -206,7 +207,9 @@ class MappingData:
 
 
 def add_arguments(subparsers):
-    local_parser = subparsers.add_parser(__name__, help=__description__)
+    local_parser = subparsers.add_parser(
+        __name__, help=__summary__, description=__description__
+    )
 
     local_parser.add_argument(
         "-p",

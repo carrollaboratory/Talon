@@ -1,5 +1,6 @@
 __name__ = "extract-harmony"
-__description__ = "Pull harmony content from MapDragon API"
+__summary__ = "Pull harmony content from MapDragon API"
+__description__ = "Pull all harmony content from a MapDragon API for a given set of studies, tables and data-dictionaries"
 
 
 import logging
