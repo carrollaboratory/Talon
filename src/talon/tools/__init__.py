@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
 
+from rich import print
+
 from .. import Locu
 
 # First, let's collect all of our tools so that we can add them to our kit
@@ -24,6 +26,25 @@ def load_tools():
         tool_lib = importlib.import_module(f"talon.tools.{toolname}")
         tools[tool_lib.__name__] = tool_lib
     return tools
+
+
+def pull_table_content(
+    locu: Locu, table_id: str, arglist: str | None = None
+) -> Dict[str, Any]:
+
+    endpoint = f"Table/{table_id}"
+    if arglist:
+        endpoint += f"&{arglist}"
+
+    table_content = locu.get(endpoint)
+
+    # pdb.set_trace()
+    for var in table_content["variables"]:
+        if var["data_type"] == "ENUMERATION":
+            termep = var["enumerations"]["reference"]
+            term_data = locu.get(termep)
+            var["codes"] = term_data["codes"]
+    return table_content
 
 
 def pull_harmony_content(

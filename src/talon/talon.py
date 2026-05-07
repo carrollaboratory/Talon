@@ -33,6 +33,7 @@ def init_logging(loglevel: str | None = None):
             console=Console(stderr=True),
             show_time=False,
             show_level=True,
+            markup=True,
             rich_tracebacks=True,
         )
         FORMAT = "%(message)s"
@@ -80,15 +81,21 @@ def exec(args: list[str] | None = None):
     args.host_config = host_config
     init_logging(args.log_level)
 
+    apiurl = None
     # Make sure we aren't provided both a host and a URL
-    if hasattr(args, "host"):
-        apiurl = host_config["hosts"][args.host]
+    if hasattr(args, "host") and args.host is not None:
+        if args.host:
+            apiurl = host_config["hosts"][args.host]
 
         if args.md_url is not None:
             logging.error("Provide either --md-url or --host. Refusing to proceed")
             sys.exit(1)
     else:
-        apiurl = args.md_url
+        if args.md_url:
+            apiurl = args.md_url
+        else:
+            logging.error("You must provide either a host or a MapDragon URL.")
+            sys.exit(1)
 
     # These applications do require an endpoint to work with, so verify
     # that the information does exist
