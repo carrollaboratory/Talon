@@ -8,7 +8,10 @@ Most of the work is done by the API, however, there are a few requirements.
 - Python >= 3.10
 - requests
 - rich
+- rich_argparse
+- duckdb
 - PyYAML
+- xxhash
 
 ## Installation
 The easiest way to install it will be through pip either:

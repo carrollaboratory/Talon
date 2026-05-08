@@ -33,7 +33,7 @@ class LoadableMapping:
     table_id: str
 
     source_enumeration: Optional[str] = None
-    mapping_relationship: Optional[str] = None
+    mapping_relationship: Optional[str] = ""
     provenance: Optional[str] = None
     comment: Optional[str] = None
 
@@ -62,7 +62,7 @@ class LoadableMapping:
             self.provenance,
             self.comment,
             self.table_id,
-            self.mapping_relationship.strip(),
+            self.mapping_relationship,
         ]
         print(data)
 
@@ -105,7 +105,7 @@ class MappingLookup:
         WITH search_terms AS (SELECT unnest(?) AS term)
         SELECT DISTINCT data.*, levenshtein(data.source_text, s.term) as distance
         FROM data, search_terms s
-        WHERE levenshtein(data.source_text, s.term) <= LEAST(?, floor(length(s.term) / 3))
+        WHERE levenshtein(data.source_text, s.term) <= LEAST(?, floor(length(s.term) / 4))
         ORDER BY distance ASC
         """
         logging.debug(query + str([terms, max_distance]))
@@ -191,7 +191,7 @@ def AddNewMapping(
         system=match["mapped_system"],
         table_id=table_id,
         provenance=prov,
-        mapping_relationship=match["mapping_relationship"],
+        mapping_relationship=match.get("mapping_relationship", ""),
     )
 
 
