@@ -52,7 +52,8 @@ class LoadableMapping:
         ]
 
     def row(self):
-        return [
+        print(f"ooga! {self.mapping_relationship}")
+        data = [
             self.source_variable,
             self.source_enumeration,
             self.code,
@@ -61,8 +62,11 @@ class LoadableMapping:
             self.provenance,
             self.comment,
             self.table_id,
-            self.mapping_relationship,
+            self.mapping_relationship.strip(),
         ]
+        print(data)
+
+        return data
 
 
 class MappingLookup:
@@ -165,7 +169,9 @@ class MappingLookup:
         columns = [desc[0] for desc in cur.description]
 
         results = [dict(zip(columns, row)) for row in cur.fetchall()]
-        logging.debug(results)
+
+        if len(results) > 0:
+            logging.debug(results)
         return results
 
 
@@ -175,8 +181,8 @@ def AddNewMapping(
     table_id,
     local_enum="",
     prov="mapping-reuse",
-    mapping_relationship="",
 ):
+    print(match)
     return LoadableMapping(
         source_variable=local_code,
         source_enumeration=local_enum,
@@ -185,6 +191,7 @@ def AddNewMapping(
         system=match["mapped_system"],
         table_id=table_id,
         provenance=prov,
+        mapping_relationship=match["mapping_relationship"],
     )
 
 
