@@ -7,7 +7,11 @@ import pdb
 import sys
 from argparse import FileType
 from csv import DictReader
+from csv import writer as csvwriter
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from posixpath import exists
 from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
 
 import duckdb
@@ -17,6 +21,7 @@ from rich_argparse import RichHelpFormatter
 
 from .. import Locu
 from . import pull_table_content
+from .sideload import sideload_csv
 
 
 @dataclass
@@ -48,7 +53,7 @@ class LoadableMapping:
 
     def row(self):
         return [
-            self.source_value,
+            self.source_variable,
             self.source_enumeration,
             self.code,
             self.display,
@@ -143,6 +148,18 @@ class MappingLookup:
         return [dict(zip(columns, row)) for row in cur.fetchall()]
 
 
+def AddNewMapping(local_code, match, table_id, local_enum="", prov="mapping-reuse"):
+    return LoadableMapping(
+        source_variable=local_code,
+        source_enumeration=local_enum,
+        code=match["mapped_code"],
+        display=match["mapped_display"],
+        system=match["mapped_system"],
+        table_id=table_id,
+        provenance=prov,
+    )
+
+
 def ReuseMappings(
     locu: Locu,
     table_id: str,
@@ -154,6 +171,7 @@ def ReuseMappings(
 
     table = pull_table_content(locu, table_id=table_id)
 
+    new_mapping_content = []
     for variable in table["variables"]:
         matches = mappings.get_mappings(
             list(set([variable["name"], variable["code"]])),
@@ -161,7 +179,16 @@ def ReuseMappings(
             fuzzy_threshold=fuzzy_threshold,
         )
 
-        print(matches)
+        if len(matches) > 0:
+            for match in matches:
+                new_mapping_content.append(
+                    AddNewMapping(
+                        local_code=variable["code"],
+                        match=match,
+                        table_id=table_id,
+                    )
+                )
+
         if variable["data_type"] == "ENUMERATION":
             for enum in variable["codes"]:
                 search_terms = []
@@ -175,9 +202,19 @@ def ReuseMappings(
                     fuzzy=fuzzy,
                     fuzzy_threshold=fuzzy_threshold,
                 )
-                print(matches)
-                pdb.set_trace()
-    print(response)
+                for match in matches:
+                    new_mapping_content.append(
+                        AddNewMapping(
+                            local_code=variable["code"],
+                            local_enum=enum["code"],
+                            match=match,
+                            table_id=table_id,
+                        )
+                    )
+    logging.info(
+        f"{len(table['variables'])} vars yeilded {len(new_mapping_content)} mappings"
+    )
+    return {"table_name": table["name"], "mappings": new_mapping_content}
 
 
 def add_arguments(subparsers):
@@ -244,10 +281,31 @@ def exec(args, locu):
             elif fuzzy == "Jaro–Winkler":
                 fuzzy_threshold = 0.9
 
-    ReuseMappings(
+    table_mappings = ReuseMappings(
         locu,
         table_id=args.table_id,
         csvfile=args.mappings,
         fuzzy=fuzzy,
         fuzzy_threshold=fuzzy_threshold,
     )
+
+    project_dir = Path(args.mappings.name).parent
+    sldir = project_dir / "sideload"
+    sldir.mkdir(parents=True, exist_ok=True)
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    host = args.host if args.host else args.md_url.split("::")[-1].split(".")[0]
+    slfilename = sldir / f"{table_mappings['table_name']}_{host}_{ts}.csv"
+
+    logging.info(f"Writing mappings to '{slfilename}'")
+    with slfilename.open("wt") as outf:
+        writer = csvwriter(outf, delimiter=",", quotechar='"')
+
+        writer.writerow(LoadableMapping.header())
+
+        for mapping in table_mappings["mappings"]:
+            writer.writerow(mapping.row())
+
+    logging.info(f"Loading into MapDragon")
+    with slfilename.open("rt") as inf:
+        sideload_csv(locu, inf, "mapping-reuse")
