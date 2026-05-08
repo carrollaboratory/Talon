@@ -70,3 +70,19 @@ conflicted entry.
 | mapped_display | The display associated with the mapped value |
 | mapped_system | The system associated with the mapped value |
 | ignore | If the value here is True (case insensitive) the mapping will not be used |
+
+
+# Matching Options
+While an exact match will be helpful for some things, there could be some value in alternative strategies. We provide a few: 
+## Case Insensitive
+If you don't care about case, a simple flag, -i, can be used to ignore case. 
+
+## Levenshtein Distance
+The [Levenshtein distance](https://en.wikipedia.org/wiki/Levenshtein_distance) metric allows you to permit up to N "edits" between the strings being compared. An edit includes insertions, deletions or substitutions. Because many of our words may be acronyms, the application will use a max distance of 1/3 the length of the string being queried for. This ensures that "DNA" doesn't match to "NO". However, it does allow users to use larger changes to accomodate larger changes in longer text strings. 
+
+By default, the max distince allowed is 2. However, users can change the distance using the argument, --fuzzy-threshold {n}, where n is any number of their choosing. Again, if the text being matched is short, the max distance will be 1/3 of the string's length. 
+
+## Jaro-Winkler Distance
+The [Jaro-Winkler](https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance) measurement evaluates the strings differently and provides greater value to matches at the beginning of the string. While mathematically, 0 indicates a perfect matche, we are using DuckDB's implementation where 1 represents a perfect match. So, when selecting the threshold, numbers lower than 1 will allow greater variation. The threshold can be changed using the --fuzzy-threshold argument. For this one, values should be between 0.0 and 1.0. 
+
+By default, the threshold used is >= 0.9.

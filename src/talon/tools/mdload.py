@@ -75,6 +75,12 @@ class MappingLookup:
 
     def load_mappings(self):
         self.db = duckdb.connect(database=":memory:")
+
+        # Ideally, trigger this only if logging is set to DEBUG
+        # Turning this off until I have a better understanding of what
+        # is actually being printed to get better control over the volume
+        # self.db.execute("PRAGMA enable_profiling='json'")
+
         self.db.execute(
             f"CREATE TABLE data AS SELECT * FROM read_csv_auto('{self.filename}')"
         )
@@ -90,11 +96,12 @@ class MappingLookup:
     ) -> duckdb.DuckDBPyConnection:
         query = """
         WITH search_terms AS (SELECT unnest(?) AS term)
-        SELECT data.*, levenshtein(data.source_text, s.term) as distance
+        SELECT DISTINCT data.*, levenshtein(data.source_text, s.term) as distance
         FROM data, search_terms s
-        WHERE levenshtein(data.source_text, s.term) <= ?
+        WHERE levenshtein(data.source_text, s.term) <= LEAST(?, floor(length(s.term) / 3))
         ORDER BY distance ASC
         """
+        logging.debug(query + str([terms, max_distance]))
 
         return self.db.execute(query, [terms, max_distance])
 
@@ -103,13 +110,15 @@ class MappingLookup:
     ) -> duckdb.DuckDBPyConnection:
         query = """
         WITH search_terms AS (SELECT unnest(?) AS term)
-        SELECT
+        SELECT DISTINCT
             data.*,
             jaro_winkler_similarity(data.source_text, s.term) as score
         FROM data, search_terms s
         WHERE jaro_winkler_similarity(data.source_text, s.term) >= ?
         ORDER BY score DESC
             """
+
+        logging.debug(query + str([terms, min_similarity]))
 
         return self.db.execute(query, [terms, min_similarity])
 
@@ -122,9 +131,10 @@ class MappingLookup:
         else:
             lowered = terms
 
-        return self.db.execute(
-            "SELECT * FROM data WHERE source_text in ?", parameters=[lowered]
-        )
+        query = "SELECT DISTINCT * FROM data WHERE source_text in ?"
+        logging.debug(query + lowered)
+
+        return self.db.execute(query, parameters=[lowered])
 
     def get_mappings(
         self,
@@ -143,9 +153,17 @@ class MappingLookup:
         else:
             cur = self.get_mappings_basic(terms, nocase)
 
+        # This is huge, so maybe we don't want this, or perhaps I will need to
+        # save it to a file that is easier to interpret and figure out which
+        # parts are worth reporting. For now, we'll just use the annoying dump
+        # I injected into each function before the call
+        # logging.debug(self.db.get_profiling_information())
+
         columns = [desc[0] for desc in cur.description]
 
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
+        results = [dict(zip(columns, row)) for row in cur.fetchall()]
+        logging.debug(results)
+        return results
 
 
 def AddNewMapping(local_code, match, table_id, local_enum="", prov="mapping-reuse"):
