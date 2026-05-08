@@ -169,7 +169,14 @@ class MappingLookup:
         return results
 
 
-def AddNewMapping(local_code, match, table_id, local_enum="", prov="mapping-reuse"):
+def AddNewMapping(
+    local_code,
+    match,
+    table_id,
+    local_enum="",
+    prov="mapping-reuse",
+    mapping_relationship="",
+):
     return LoadableMapping(
         source_variable=local_code,
         source_enumeration=local_enum,

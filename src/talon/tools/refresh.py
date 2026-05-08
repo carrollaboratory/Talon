@@ -39,6 +39,7 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
             "mapped_code",
             "mapped_display",
             "mapped_system",
+            "mapping_relationship",
             "ignore",
         ]
         df_csv = pd.DataFrame(columns=cols)
@@ -65,8 +66,9 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
                 line_data = {
                     "source_text": row["source_text"],
                     "mapped_code": row["mapped_code"],
-                    "mapped_display": row["mapped_display_web"],  # Use Web value
-                    "mapped_system": row["mapped_system_web"],  # Use Web value
+                    "mapped_display": row["mapped_display_web"],
+                    "mapped_system": row["mapped_system_web"],
+                    "mapping_relationship": row["mapping_relationship"],
                     "ignore": row["ignore"],  # Keep original ignore
                 }
                 md_line = (
@@ -112,10 +114,10 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
         # Safe copy: original remains until to_csv succeeds
         shutil.copy2(csv_file, backup_path)
 
-    final_df.to_csv(
+    final_df.drop_duplicates().to_csv(
         csv_file,
         index=False,
-        columns="source_text,mapped_code,mapped_display,mapped_system,ignore".split(
+        columns="source_text,mapped_code,mapped_display,mapped_system,mapping_relationship,ignore".split(
             ","
         ),
     )
