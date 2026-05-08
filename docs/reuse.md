@@ -1,4 +1,5 @@
 # Reuse
+The reuse command is intended to allow users to attach mappings from their [currated mappings file](reusable_mappings.md#Mappings-Format) to terms that are present in a MapDragon table. While the mapping used can come from any source, they should use the schema defined in the link provided above. 
 
 ```bash
 $ talon reuse -h

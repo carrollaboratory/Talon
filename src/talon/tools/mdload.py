@@ -85,6 +85,9 @@ class MappingLookup:
             f"CREATE TABLE data AS SELECT * FROM read_csv_auto('{self.filename}')"
         )
 
+        # Get rid of any of our "ignored" columns
+        self.db.execute("DELETE FROM data WHERE ignore::BOOLEAN")
+
         if self.case_insensitive:
             self.db.execute(
                 "ALTER TABLE data ALTER source_text SET DATA TYPE VARCHAR COLLATE NOCASE"
