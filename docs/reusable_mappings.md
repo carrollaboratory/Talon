@@ -14,7 +14,7 @@ The flow is simple enough:
   identified during the pull. These have typically been related to some earlier
   pulls from OLS where the systems changed depending on the build. 
 - The curator can copy the value from "MD Line" of a particular error on top of
-  an existing mapping to enable that as the new currated mapping. This would 
+  an existing mapping to enable that as the new curated mapping. This would 
   presumably be an updated system or display, since a change to the code would 
   result in separate mapping entry altogether.
 
