@@ -21,6 +21,7 @@ def sideload_csv(locu: Locu, csvfile: TextIO, editor: str):
     body = {"editor": editor, "csvContents": mappings}
 
     response = locu.post("SideLoad", body)
+
     if response:
         logging.info(response)
 
