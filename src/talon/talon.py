@@ -7,7 +7,6 @@ import sys
 from argparse import ArgumentParser  # , FileType
 
 from talon import get_host_config
-from talon._version import __version__
 
 from . import Locu
 
@@ -16,6 +15,12 @@ if sys.stderr.isatty():
     from rich.logging import RichHandler
     from rich.traceback import install
 
+import importlib.metadata
+
+try:
+    __version__ = importlib.metadata.version("talon")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "0.0.0.dev0"  # Fallback for uninstalled source code
 
 from talon.tools import load_tools
 
