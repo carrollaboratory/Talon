@@ -5,9 +5,9 @@ Tools for simplifying interaction with the MapDragon
 import logging
 import sys
 from argparse import ArgumentParser  # , FileType
+from importlib.metadata import version
 
 from talon import get_host_config
-from talon._version import __version__
 
 from . import Locu
 
@@ -61,7 +61,7 @@ def exec(arguments: list[str] | None = None):
         "-V",
         "--version",
         action="version",
-        version=f"%(prog)s {__version__}",
+        version=f"%(prog)s {version('talon')}",
         help="Show application version and exit",
     )
     parser.add_argument(
