@@ -7,6 +7,7 @@ import sys
 from argparse import ArgumentParser  # , FileType
 
 from talon import get_host_config
+from talon._version import __version__
 
 from . import Locu
 
@@ -14,6 +15,7 @@ if sys.stderr.isatty():
     from rich.console import Console
     from rich.logging import RichHandler
     from rich.traceback import install
+
 
 from talon.tools import load_tools
 
@@ -26,11 +28,11 @@ def init_logging(loglevel: str | None = None):
         loglevel = "WARN"
     DATEFMT = "%Y-%m-%dT%H:%M:%SZ"
     if sys.stderr.isatty():
-        install(show_locals=True)
+        install(show_locals=True)  # pyright: ignore[reportPossiblyUnboundVariable]
 
-        handler = RichHandler(
+        handler = RichHandler(  # pyright: ignore[reportPossiblyUnboundVariable]
             level=loglevel,
-            console=Console(stderr=True),
+            console=Console(stderr=True),  # pyright: ignore[reportPossiblyUnboundVariable]
             show_time=False,
             show_level=True,
             markup=True,
@@ -46,7 +48,7 @@ def init_logging(loglevel: str | None = None):
     )
 
 
-def exec(args: list[str] | None = None):
+def exec(arguments: list[str] | None = None):
 
     # init_logging()
     host_config = get_host_config()
@@ -54,6 +56,13 @@ def exec(args: list[str] | None = None):
     parser = ArgumentParser(
         prog="talon",
         description="""MD assistant""",
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show application version and exit",
     )
     parser.add_argument(
         "-log",
@@ -77,7 +86,7 @@ def exec(args: list[str] | None = None):
     for toolname in tools:
         tools[toolname].add_arguments(subparsers)
 
-    args = parser.parse_args(args)
+    args = parser.parse_args(arguments)
     args.host_config = host_config
     init_logging(args.log_level)
 
@@ -101,7 +110,7 @@ def exec(args: list[str] | None = None):
     # that the information does exist
     if not hasattr(args, "host") and args.md_url is None:
         logging.error(
-            f"You must provide either the API URL or a configured host to proceed"
+            "You must provide either the API URL or a configured host to proceed"
         )
         if len(args.host_config["hosts"]) > 0:
             logging.error(
@@ -109,6 +118,7 @@ def exec(args: list[str] | None = None):
             )
         sys.exit(1)
 
+    assert apiurl is not None
     locu = Locu(apiurl)
 
     if host_config.get("missing_host_config"):
