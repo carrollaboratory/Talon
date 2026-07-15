@@ -44,6 +44,13 @@ class Locu:
             response.raise_for_status()
             logging.info(response)
             return response.json()
+        except requests.exceptions.HTTPError as e:
+            err = response.json()
+            if "message" in err:
+                logging.error(err["message"])
+            else:
+                logging.error(f"HTTP ERROR: {e}")
+            sys.exit(1)
         except requests.exceptions.RequestException as e:
             logging.error(f"HTTP ERROR: {e}")
             sys.exit(1)

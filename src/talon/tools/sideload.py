@@ -13,14 +13,24 @@ import requests
 
 from .. import Locu
 
+REQUIRED_COLS = "table_id,source_variable,code,display,system,provenance".split(",")
+
 
 def sideload_csv(locu: Locu, csvfile: TextIO, editor: str):
     reader = DictReader(csvfile, delimiter=",", quotechar='"')
+
+    missing_columns = set(REQUIRED_COLS) - set(reader.fieldnames or [])
+
+    if len(missing_columns) > 0:
+        msg = f"Invalid CSV header. Missing required columns: {', '.join(list(missing_columns))}"
+        logging.error(msg)
+        raise ValueError(msg)
 
     mappings = list(reader)
     body = {"editor": editor, "csvContents": mappings}
 
     response = locu.post("SideLoad", body)
+
     if response:
         logging.info(response)
 
