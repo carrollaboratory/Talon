@@ -5,7 +5,6 @@ Tools for simplifying interaction with the MapDragon
 import logging
 import sys
 from argparse import ArgumentParser  # , FileType
-from importlib.metadata import version
 
 from talon import get_host_config
 
@@ -16,6 +15,12 @@ if sys.stderr.isatty():
     from rich.logging import RichHandler
     from rich.traceback import install
 
+import importlib.metadata
+
+try:
+    __version__ = importlib.metadata.version("talon")
+except importlib.metadata.PackageNotFoundError:
+    __version__ = "0.0.0.dev0"  # Fallback for uninstalled source code
 
 from talon.tools import load_tools
 
@@ -61,7 +66,7 @@ def exec(arguments: list[str] | None = None):
         "-V",
         "--version",
         action="version",
-        version=f"%(prog)s {version('talon')}",
+        version=f"%(prog)s {__version__}",
         help="Show application version and exit",
     )
     parser.add_argument(
