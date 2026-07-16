@@ -48,7 +48,7 @@ def add_arguments(subparsers):
 
     local_parser.add_argument(
         "mappings",
-        type=FileType("rt"),
+        type=FileType("rt", encoding="utf-8-sig"),
         nargs="+",
         help="1 or more CSV files that conform to the sideload format",
     )
