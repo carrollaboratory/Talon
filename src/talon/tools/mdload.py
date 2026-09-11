@@ -3,19 +3,15 @@ __summary__ = "Update an existing MapDragon table or data-dictionary with terms 
 __description__ = "Update an existing MapDragon table or data-dictionary with terms from the curated mappings."
 
 import logging
-import pdb
 import sys
 from argparse import FileType
-from csv import DictReader
 from csv import writer as csvwriter
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from posixpath import exists
-from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
+from typing import Any, TextIO
 
 import duckdb
-import requests
 from rich import print
 from rich_argparse import RichHelpFormatter
 
@@ -32,10 +28,10 @@ class LoadableMapping:
     system: str
     table_id: str
 
-    source_enumeration: Optional[str] = None
-    mapping_relationship: Optional[str] = ""
-    provenance: Optional[str] = None
-    comment: Optional[str] = None
+    source_enumeration: str | None = None
+    mapping_relationship: str | None = ""
+    provenance: str | None = None
+    comment: str | None = None
 
     @classmethod
     def header(cls):
@@ -99,7 +95,7 @@ class MappingLookup:
         return self.db.execute("CREATE INDEX idx_source_text ON data (source_text)")
 
     def get_mappings_levenshtein(
-        self, terms: List[str], max_distance: int = 2
+        self, terms: list[str], max_distance: int = 2
     ) -> duckdb.DuckDBPyConnection:
         query = """
         WITH search_terms AS (SELECT unnest(?) AS term)
@@ -113,7 +109,7 @@ class MappingLookup:
         return self.db.execute(query, [terms, max_distance])
 
     def get_mappings_jw(
-        self, terms: List[str], min_similarity: float
+        self, terms: list[str], min_similarity: float
     ) -> duckdb.DuckDBPyConnection:
         query = """
         WITH search_terms AS (SELECT unnest(?) AS term)
@@ -130,7 +126,7 @@ class MappingLookup:
         return self.db.execute(query, [terms, min_similarity])
 
     def get_mappings_basic(
-        self, terms: List[str], nocase: bool = True
+        self, terms: list[str], nocase: bool = True
     ) -> duckdb.DuckDBPyConnection:
 
         if nocase:
@@ -139,17 +135,18 @@ class MappingLookup:
             lowered = terms
 
         query = "SELECT DISTINCT * FROM data WHERE source_text in ?"
-        logging.debug(query + lowered)
+        # pdb.set_trace()
+        # logging.debug([query] + lowered)
 
         return self.db.execute(query, parameters=[lowered])
 
     def get_mappings(
         self,
-        terms: List[str],
+        terms: list[str],
         nocase: bool = True,
         fuzzy: str | None = None,
         fuzzy_threshold: str | None = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Accept one or more terms and return any matching, possibly without case sensitivity"""
 
         if fuzzy:
@@ -201,7 +198,7 @@ def ReuseMappings(
     csvfile: TextIO,
     fuzzy: str | None = None,
     fuzzy_threshold: str | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     mappings = MappingLookup(csvfile.name)
 
     table = pull_table_content(locu, table_id=table_id)
@@ -300,7 +297,7 @@ def add_arguments(subparsers):
 def exec(args, locu):
     if args.table_id is not None and args.data_dictionary_id is not None:
         logging.error(
-            f"You must provide either a single [blue]Table ID[/blue] or a single [blue]Data Dictionary ID[/blue]. Not both."
+            "You must provide either a single [blue]Table ID[/blue] or a single [blue]Data Dictionary ID[/blue]. Not both."
         )
         sys.exit(1)
 
@@ -341,6 +338,6 @@ def exec(args, locu):
         for mapping in table_mappings["mappings"]:
             writer.writerow(mapping.row())
 
-    logging.info(f"Loading into MapDragon")
+    logging.info("Loading into MapDragon")
     with slfilename.open("rt") as inf:
         sideload_csv(locu, inf, "mapping-reuse")
