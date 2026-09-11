@@ -22,6 +22,8 @@ from rich import print
 from .. import Locu
 from . import pull_harmony_content
 
+logger = logging.getLogger(__name__)
+
 
 def sync_mapping_with_audit(csv_path: str, web_data_list: list):
     csv_file = Path(csv_path)
@@ -251,11 +253,11 @@ def add_arguments(subparsers):
 
 def exec(args, locu):
     if not hasattr(args, "host") and args.md_url is None:
-        logging.error(
+        logger.error(
             "You must provide either the API URL or a configured host to proceed"
         )
         if len(args.host_config["hosts"]) > 0:
-            logging.error(
+            logger.error(
                 f"Available hosts include: {', '.join(args.host_config['hosts'].keys())}"
             )
         sys.exit(1)

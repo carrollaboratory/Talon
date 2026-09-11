@@ -28,9 +28,23 @@ def load_tools():
     return tools
 
 
+def get_table_ids_for_dd(locu: Locu, dd_id, arglist: str | None = None) -> list[str]:
+    endpoint = f"DataDictionary/{dd_id}"
+    if arglist:
+        endpoint += f"&{arglist}"
+
+    table_ids = []
+    ddcontent = locu.get(endpoint)
+
+    for tableref in ddcontent["tables"]:
+        table_ids.append(tableref["reference"].split("/")[-1])
+
+    return table_ids
+
+
 def pull_table_content(
     locu: Locu, table_id: str, arglist: str | None = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
 
     endpoint = f"Table/{table_id}"
     if arglist:
@@ -49,11 +63,11 @@ def pull_table_content(
 
 def pull_harmony_content(
     locu: Locu,
-    study_ids: List[str] = [],
-    dd_ids: List[str] = [],
-    table_ids: List[str] = [],
+    study_ids: list[str] = [],
+    dd_ids: list[str] = [],
+    table_ids: list[str] = [],
     format: str = "FTD",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return the harmony content in dict format"""
     arglist = [f"format={format}"]
     if len(study_ids) > 0:
