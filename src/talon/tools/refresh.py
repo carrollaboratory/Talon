@@ -7,7 +7,6 @@ This script allows for downloading content from Map Dragon for curation.
 """
 
 import logging
-import pdb
 import shutil
 import sys
 from dataclasses import dataclass
@@ -50,7 +49,6 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
     # Fields where differences trigger a conflict report
     audit_fields = ["mapped_display", "mapped_system"]
 
-    pdb.set_trace()
     # 3. Detect Conflicts (Including ignored rows)
     # This finds where keys match but display or system differ
     overlap = pd.merge(df_csv, df_web, on=keys, suffixes=("_csv", "_web"))
