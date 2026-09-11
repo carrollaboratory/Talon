@@ -10,12 +10,10 @@ import logging
 import pdb
 import shutil
 import sys
-from argparse import FileType
-from csv import DictWriter
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Self, Set, TextIO
+from typing import Self
 
 import pandas as pd
 import xxhash
@@ -52,6 +50,7 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
     # Fields where differences trigger a conflict report
     audit_fields = ["mapped_display", "mapped_system"]
 
+    pdb.set_trace()
     # 3. Detect Conflicts (Including ignored rows)
     # This finds where keys match but display or system differ
     overlap = pd.merge(df_csv, df_web, on=keys, suffixes=("_csv", "_web"))
@@ -117,9 +116,14 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
     final_df.drop_duplicates().to_csv(
         csv_file,
         index=False,
-        columns="source_text,mapped_code,mapped_display,mapped_system,mapping_relationship,ignore".split(
-            ","
-        ),
+        columns=[
+            "source_text",
+            "mapped_code",
+            "mapped_display",
+            "mapped_system",
+            "mapping_relationship",
+            "ignore",
+        ],
     )
 
     return {
@@ -132,9 +136,9 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
 def refresh_dataset(
     locu: Locu,
     project_directory: str,
-    study_ids: List[str] = [],
-    dd_ids: List[str] = [],
-    table_ids: List[str] = [],
+    study_ids: list[str] = [],
+    dd_ids: list[str] = [],
+    table_ids: list[str] = [],
 ):
     """Refresh the curated dataset with mappings from the specified sources"""
 
@@ -174,13 +178,13 @@ class MappingData:
     mapped_code: str
     mapped_display: str
     mapped_system: str
-    source_description: Optional[str] = None
-    mapping_relationship: Optional[str] = None
-    comment: Optional[str] = None
-    ignore: Optional[bool] = None
+    source_description: str | None = None
+    mapping_relationship: str | None = None
+    comment: str | None = None
+    ignore: bool | None = None
 
     @classmethod
-    def from_ftd(cls, data: Dict[str, str]) -> Self:
+    def from_ftd(cls, data: dict[str, str]) -> Self:
         """Extracts fields from the FTD formatted harmony export from MD"""
 
         return cls(
@@ -194,7 +198,7 @@ class MappingData:
         )
 
     @classmethod
-    def from_whistle(cls, data: Dict[str, str]) -> Self:
+    def from_whistle(cls, data: dict[str, str]) -> Self:
         """Extracts fields from the FTD formatted harmony export from MD"""
 
         return cls(
@@ -250,7 +254,7 @@ def add_arguments(subparsers):
 def exec(args, locu):
     if not hasattr(args, "host") and args.md_url is None:
         logging.error(
-            f"You must provide either the API URL or a configured host to proceed"
+            "You must provide either the API URL or a configured host to proceed"
         )
         if len(args.host_config["hosts"]) > 0:
             logging.error(
@@ -260,10 +264,12 @@ def exec(args, locu):
 
     study_ids = args.study_id
     table_ids = args.table_id
+    dd_ids = args.data_dictionary_id
 
     refresh_dataset(
         locu,
         project_directory=args.project_dir,
         study_ids=study_ids,
         table_ids=table_ids,
+        dd_ids=dd_ids,
     )
