@@ -10,7 +10,7 @@ import logging
 import shutil
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Self
 
@@ -25,7 +25,7 @@ from . import pull_harmony_content
 logger = logging.getLogger(__name__)
 
 
-def sync_mapping_with_audit(csv_path: str, web_data_list: list):
+def sync_mapping_with_audit(csv_path: str, web_data_list: list[dict]):
     csv_file = Path(csv_path)
     backup_root = csv_file.parent / "backup"
     # 1. Load data safely into memory
@@ -44,7 +44,6 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
         df_csv = pd.DataFrame(columns=cols)
 
     # 2. Standardize web data
-
     df_web = pd.DataFrame(web_data_list).astype(str)
 
     keys = ["source_text", "mapped_code"]
@@ -67,9 +66,10 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
                     "mapped_code": row["mapped_code"],
                     "mapped_display": row["mapped_display_web"],
                     "mapped_system": row["mapped_system_web"],
-                    "mapping_relationship": row["mapping_relationship"],
+                    "mapping_relationship": row["mapping_relationship_web"],
                     "ignore": row["ignore"],  # Keep original ignore
                 }
+
                 md_line = (
                     pd.DataFrame([line_data]).to_csv(index=False, header=False).strip()
                 )
@@ -83,7 +83,7 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
                 }
 
                 details = yaml.dump(conflict_entry, sort_keys=True)
-                hash = xxhash.xxh32(details)
+                hash = xxhash.xxh32(details.encode("utf-8"))
                 if hash not in observed:
                     conflict_report.append(conflict_entry)
                     observed.add(hash)
@@ -107,7 +107,7 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
     # 6. Commit Changes
     if csv_file.exists():
         backup_root.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_path = backup_root / f"{csv_file.stem}_{ts}{csv_file.suffix}"
 
         # Safe copy: original remains until to_csv succeeds
@@ -136,9 +136,9 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
 def refresh_dataset(
     locu: Locu,
     project_directory: str,
-    study_ids: list[str] = [],
-    dd_ids: list[str] = [],
-    table_ids: list[str] = [],
+    study_ids: list[str] | None = None,
+    dd_ids: list[str] | None = None,
+    table_ids: list[str] | None = None,
 ):
     """Refresh the curated dataset with mappings from the specified sources"""
 

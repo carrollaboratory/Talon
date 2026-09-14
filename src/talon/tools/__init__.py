@@ -63,7 +63,7 @@ def pull_harmony_content(
     dd_ids: list[str] | None = None,
     table_ids: list[str] | None = None,
     format: str = "FTD",
-) -> dict[str, Any]:
+) -> list[dict]:
     """Return the harmony content in dict format"""
     arglist = [f"format={format}"]
     if study_ids:
@@ -73,4 +73,6 @@ def pull_harmony_content(
     if dd_ids:
         arglist.append(f"datadictionaries={','.join(dd_ids)}")
 
-    return locu.get(f"harmony?{'&'.join(arglist)}")
+    content = locu.get(f"harmony?{'&'.join(arglist)}")
+
+    return content
