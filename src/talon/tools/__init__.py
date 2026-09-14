@@ -1,10 +1,6 @@
 import importlib
-import pdb
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
-
-from rich import print
+from typing import Any
 
 from .. import Locu
 
@@ -28,9 +24,23 @@ def load_tools():
     return tools
 
 
+def get_table_ids_for_dd(locu: Locu, dd_id, arglist: str | None = None) -> list[str]:
+    endpoint = f"DataDictionary/{dd_id}"
+    if arglist:
+        endpoint += f"&{arglist}"
+
+    table_ids = []
+    ddcontent = locu.get(endpoint)
+
+    for tableref in ddcontent["tables"]:
+        table_ids.append(tableref["reference"].split("/")[-1])
+
+    return table_ids
+
+
 def pull_table_content(
     locu: Locu, table_id: str, arglist: str | None = None
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
 
     endpoint = f"Table/{table_id}"
     if arglist:
@@ -49,18 +59,20 @@ def pull_table_content(
 
 def pull_harmony_content(
     locu: Locu,
-    study_ids: List[str] = [],
-    dd_ids: List[str] = [],
-    table_ids: List[str] = [],
+    study_ids: list[str] | None = None,
+    dd_ids: list[str] | None = None,
+    table_ids: list[str] | None = None,
     format: str = "FTD",
-) -> Dict[str, Any]:
+) -> list[dict]:
     """Return the harmony content in dict format"""
     arglist = [f"format={format}"]
-    if len(study_ids) > 0:
+    if study_ids:
         arglist.append(f"studies={','.join(study_ids)}")
-    if len(table_ids) > 0:
+    if table_ids:
         arglist.append(f"tables={','.join(table_ids)}")
-    if len(dd_ids) > 0:
+    if dd_ids:
         arglist.append(f"datadictionaries={','.join(dd_ids)}")
 
-    return locu.get(f"harmony?{'&'.join(arglist)}")
+    content = locu.get(f"harmony?{'&'.join(arglist)}")
+
+    return content

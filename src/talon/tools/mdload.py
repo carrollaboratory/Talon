@@ -3,25 +3,22 @@ __summary__ = "Update an existing MapDragon table or data-dictionary with terms 
 __description__ = "Update an existing MapDragon table or data-dictionary with terms from the curated mappings."
 
 import logging
-import pdb
 import sys
 from argparse import FileType
-from csv import DictReader
 from csv import writer as csvwriter
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from posixpath import exists
-from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
+from typing import Any, TextIO
 
 import duckdb
-import requests
-from rich import print
 from rich_argparse import RichHelpFormatter
 
 from .. import Locu
-from . import pull_table_content
+from . import get_table_ids_for_dd, pull_table_content
 from .sideload import sideload_csv
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -32,10 +29,10 @@ class LoadableMapping:
     system: str
     table_id: str
 
-    source_enumeration: Optional[str] = None
-    mapping_relationship: Optional[str] = ""
-    provenance: Optional[str] = None
-    comment: Optional[str] = None
+    source_enumeration: str | None = None
+    mapping_relationship: str | None = ""
+    provenance: str | None = None
+    comment: str | None = None
 
     @classmethod
     def header(cls):
@@ -52,7 +49,7 @@ class LoadableMapping:
         ]
 
     def row(self):
-        print(f"ooga! {self.mapping_relationship}")
+        # print(f"ooga! {self.mapping_relationship}")
         data = [
             self.source_variable,
             self.source_enumeration,
@@ -64,7 +61,7 @@ class LoadableMapping:
             self.table_id,
             self.mapping_relationship,
         ]
-        print(data)
+        # print(data)
 
         return data
 
@@ -96,10 +93,13 @@ class MappingLookup:
             self.db.execute(
                 "ALTER TABLE data ALTER source_text SET DATA TYPE VARCHAR COLLATE NOCASE"
             )
-        return self.db.execute("CREATE INDEX idx_source_text ON data (source_text)")
+            logger.info("Setting database to ignore case")
+        return self.db.execute(
+            "CREATE INDEX idx_source_text_lower ON data (lower(source_text))"
+        )
 
     def get_mappings_levenshtein(
-        self, terms: List[str], max_distance: int = 2
+        self, terms: list[str], max_distance: int = 2
     ) -> duckdb.DuckDBPyConnection:
         query = """
         WITH search_terms AS (SELECT unnest(?) AS term)
@@ -108,12 +108,12 @@ class MappingLookup:
         WHERE levenshtein(data.source_text, s.term) <= LEAST(?, floor(length(s.term) / 4))
         ORDER BY distance ASC
         """
-        logging.debug(query + str([terms, max_distance]))
+        logger.debug(query + str([terms, max_distance]))
 
         return self.db.execute(query, [terms, max_distance])
 
     def get_mappings_jw(
-        self, terms: List[str], min_similarity: float
+        self, terms: list[str], min_similarity: float
     ) -> duckdb.DuckDBPyConnection:
         query = """
         WITH search_terms AS (SELECT unnest(?) AS term)
@@ -125,31 +125,32 @@ class MappingLookup:
         ORDER BY score DESC
             """
 
-        logging.debug(query + str([terms, min_similarity]))
+        logger.debug(query + str([terms, min_similarity]))
 
         return self.db.execute(query, [terms, min_similarity])
 
     def get_mappings_basic(
-        self, terms: List[str], nocase: bool = True
+        self, terms: list[str], nocase: bool = True
     ) -> duckdb.DuckDBPyConnection:
 
         if nocase:
-            lowered = [t.lower() for t in terms]
+            lowered = [t.lower() for t in terms]  # + terms
         else:
             lowered = terms
 
-        query = "SELECT DISTINCT * FROM data WHERE source_text in ?"
-        logging.debug(query + lowered)
+        query = "SELECT DISTINCT * FROM data WHERE lower(source_text) in ?"
+        # pdb.set_trace()
+        # logger.debug([query] + lowered)
 
         return self.db.execute(query, parameters=[lowered])
 
     def get_mappings(
         self,
-        terms: List[str],
+        terms: list[str],
         nocase: bool = True,
         fuzzy: str | None = None,
         fuzzy_threshold: str | None = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Accept one or more terms and return any matching, possibly without case sensitivity"""
 
         if fuzzy:
@@ -164,14 +165,14 @@ class MappingLookup:
         # save it to a file that is easier to interpret and figure out which
         # parts are worth reporting. For now, we'll just use the annoying dump
         # I injected into each function before the call
-        # logging.debug(self.db.get_profiling_information())
+        # logger.debug(self.db.get_profiling_information())
 
         columns = [desc[0] for desc in cur.description]
 
         results = [dict(zip(columns, row)) for row in cur.fetchall()]
 
         if len(results) > 0:
-            logging.debug(results)
+            logger.debug(results)
         return results
 
 
@@ -182,7 +183,7 @@ def AddNewMapping(
     local_enum="",
     prov="mapping-reuse",
 ):
-    print(match)
+    # print(match)
     return LoadableMapping(
         source_variable=local_code,
         source_enumeration=local_enum,
@@ -201,7 +202,7 @@ def ReuseMappings(
     csvfile: TextIO,
     fuzzy: str | None = None,
     fuzzy_threshold: str | None = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     mappings = MappingLookup(csvfile.name)
 
     table = pull_table_content(locu, table_id=table_id)
@@ -237,6 +238,7 @@ def ReuseMappings(
                     fuzzy=fuzzy,
                     fuzzy_threshold=fuzzy_threshold,
                 )
+
                 for match in matches:
                     new_mapping_content.append(
                         AddNewMapping(
@@ -246,7 +248,7 @@ def ReuseMappings(
                             table_id=table_id,
                         )
                     )
-    logging.info(
+    logger.info(
         f"{len(table['variables'])} vars yeilded {len(new_mapping_content)} mappings"
     )
     return {"table_name": table["name"], "mappings": new_mapping_content}
@@ -299,8 +301,8 @@ def add_arguments(subparsers):
 
 def exec(args, locu):
     if args.table_id is not None and args.data_dictionary_id is not None:
-        logging.error(
-            f"You must provide either a single [blue]Table ID[/blue] or a single [blue]Data Dictionary ID[/blue]. Not both."
+        logger.error(
+            "You must provide either a single [blue]Table ID[/blue] or a single [blue]Data Dictionary ID[/blue]. Not both."
         )
         sys.exit(1)
 
@@ -316,31 +318,41 @@ def exec(args, locu):
             elif fuzzy == "Jaro–Winkler":
                 fuzzy_threshold = 0.9
 
-    table_mappings = ReuseMappings(
-        locu,
-        table_id=args.table_id,
-        csvfile=args.mappings,
-        fuzzy=fuzzy,
-        fuzzy_threshold=fuzzy_threshold,
-    )
+    table_ids = []
 
-    project_dir = Path(args.mappings.name).parent
-    sldir = project_dir / "sideload"
-    sldir.mkdir(parents=True, exist_ok=True)
+    if args.data_dictionary_id is not None:
+        table_ids = get_table_ids_for_dd(locu=locu, dd_id=args.data_dictionary_id)
+    if args.table_id is not None:
+        table_ids.append(args.table_id)
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    host = args.host if args.host else args.md_url.split("::")[-1].split(".")[0]
-    slfilename = sldir / f"{table_mappings['table_name']}_{host}_{ts}.csv"
+    for table_id in table_ids:
+        table_mappings = ReuseMappings(
+            locu,
+            table_id=table_id,
+            csvfile=args.mappings,
+            fuzzy=fuzzy,
+            fuzzy_threshold=fuzzy_threshold,
+        )
 
-    logging.info(f"Writing mappings to '{slfilename}'")
-    with slfilename.open("wt") as outf:
-        writer = csvwriter(outf, delimiter=",", quotechar='"')
+        project_dir = Path(args.mappings.name).parent
+        sldir = project_dir / "sideload"
+        sldir.mkdir(parents=True, exist_ok=True)
 
-        writer.writerow(LoadableMapping.header())
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        host = args.host if args.host else args.md_url.split("::")[-1].split(".")[0]
+        slfilename = (
+            sldir / f"{table_mappings['table_name']}_{host}-{table_id}_{ts}.csv"
+        )
 
-        for mapping in table_mappings["mappings"]:
-            writer.writerow(mapping.row())
+        logger.info(f"Writing mappings to '{slfilename}'")
+        with slfilename.open("wt") as outf:
+            writer = csvwriter(outf, delimiter=",", quotechar='"')
 
-    logging.info(f"Loading into MapDragon")
-    with slfilename.open("rt") as inf:
-        sideload_csv(locu, inf, "mapping-reuse")
+            writer.writerow(LoadableMapping.header())
+
+            for mapping in table_mappings["mappings"]:
+                writer.writerow(mapping.row())
+
+        logger.info("Loading into MapDragon")
+        with slfilename.open("rt") as inf:
+            sideload_csv(locu, inf, "mapping-reuse")

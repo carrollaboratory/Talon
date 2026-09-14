@@ -7,15 +7,12 @@ This script allows for downloading content from Map Dragon for curation.
 """
 
 import logging
-import pdb
 import shutil
 import sys
-from argparse import FileType
-from csv import DictWriter
-from dataclasses import dataclass, fields
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Self, Set, TextIO
+from typing import Self
 
 import pandas as pd
 import xxhash
@@ -25,8 +22,10 @@ from rich import print
 from .. import Locu
 from . import pull_harmony_content
 
+logger = logging.getLogger(__name__)
 
-def sync_mapping_with_audit(csv_path: str, web_data_list: list):
+
+def sync_mapping_with_audit(csv_path: str, web_data_list: list[dict]):
     csv_file = Path(csv_path)
     backup_root = csv_file.parent / "backup"
     # 1. Load data safely into memory
@@ -45,7 +44,6 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
         df_csv = pd.DataFrame(columns=cols)
 
     # 2. Standardize web data
-
     df_web = pd.DataFrame(web_data_list).astype(str)
 
     keys = ["source_text", "mapped_code"]
@@ -68,9 +66,10 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
                     "mapped_code": row["mapped_code"],
                     "mapped_display": row["mapped_display_web"],
                     "mapped_system": row["mapped_system_web"],
-                    "mapping_relationship": row["mapping_relationship"],
+                    "mapping_relationship": row["mapping_relationship_web"],
                     "ignore": row["ignore"],  # Keep original ignore
                 }
+
                 md_line = (
                     pd.DataFrame([line_data]).to_csv(index=False, header=False).strip()
                 )
@@ -84,7 +83,7 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
                 }
 
                 details = yaml.dump(conflict_entry, sort_keys=True)
-                hash = xxhash.xxh32(details)
+                hash = xxhash.xxh32(details.encode("utf-8"))
                 if hash not in observed:
                     conflict_report.append(conflict_entry)
                     observed.add(hash)
@@ -108,7 +107,7 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
     # 6. Commit Changes
     if csv_file.exists():
         backup_root.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_path = backup_root / f"{csv_file.stem}_{ts}{csv_file.suffix}"
 
         # Safe copy: original remains until to_csv succeeds
@@ -117,9 +116,14 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
     final_df.drop_duplicates().to_csv(
         csv_file,
         index=False,
-        columns="source_text,mapped_code,mapped_display,mapped_system,mapping_relationship,ignore".split(
-            ","
-        ),
+        columns=[
+            "source_text",
+            "mapped_code",
+            "mapped_display",
+            "mapped_system",
+            "mapping_relationship",
+            "ignore",
+        ],
     )
 
     return {
@@ -132,9 +136,9 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list):
 def refresh_dataset(
     locu: Locu,
     project_directory: str,
-    study_ids: List[str] = [],
-    dd_ids: List[str] = [],
-    table_ids: List[str] = [],
+    study_ids: list[str] | None = None,
+    dd_ids: list[str] | None = None,
+    table_ids: list[str] | None = None,
 ):
     """Refresh the curated dataset with mappings from the specified sources"""
 
@@ -174,13 +178,13 @@ class MappingData:
     mapped_code: str
     mapped_display: str
     mapped_system: str
-    source_description: Optional[str] = None
-    mapping_relationship: Optional[str] = None
-    comment: Optional[str] = None
-    ignore: Optional[bool] = None
+    source_description: str | None = None
+    mapping_relationship: str | None = None
+    comment: str | None = None
+    ignore: bool | None = None
 
     @classmethod
-    def from_ftd(cls, data: Dict[str, str]) -> Self:
+    def from_ftd(cls, data: dict[str, str]) -> Self:
         """Extracts fields from the FTD formatted harmony export from MD"""
 
         return cls(
@@ -194,7 +198,7 @@ class MappingData:
         )
 
     @classmethod
-    def from_whistle(cls, data: Dict[str, str]) -> Self:
+    def from_whistle(cls, data: dict[str, str]) -> Self:
         """Extracts fields from the FTD formatted harmony export from MD"""
 
         return cls(
@@ -249,21 +253,23 @@ def add_arguments(subparsers):
 
 def exec(args, locu):
     if not hasattr(args, "host") and args.md_url is None:
-        logging.error(
-            f"You must provide either the API URL or a configured host to proceed"
+        logger.error(
+            "You must provide either the API URL or a configured host to proceed"
         )
         if len(args.host_config["hosts"]) > 0:
-            logging.error(
+            logger.error(
                 f"Available hosts include: {', '.join(args.host_config['hosts'].keys())}"
             )
         sys.exit(1)
 
     study_ids = args.study_id
     table_ids = args.table_id
+    dd_ids = args.data_dictionary_id
 
     refresh_dataset(
         locu,
         project_directory=args.project_dir,
         study_ids=study_ids,
         table_ids=table_ids,
+        dd_ids=dd_ids,
     )
