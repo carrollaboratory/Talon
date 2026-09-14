@@ -1,10 +1,6 @@
 import importlib
-import pdb
-import sys
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
-
-from rich import print
+from typing import Any
 
 from .. import Locu
 
@@ -63,18 +59,20 @@ def pull_table_content(
 
 def pull_harmony_content(
     locu: Locu,
-    study_ids: list[str] = [],
-    dd_ids: list[str] = [],
-    table_ids: list[str] = [],
+    study_ids: list[str] | None = None,
+    dd_ids: list[str] | None = None,
+    table_ids: list[str] | None = None,
     format: str = "FTD",
-) -> dict[str, Any]:
+) -> list[dict]:
     """Return the harmony content in dict format"""
     arglist = [f"format={format}"]
-    if len(study_ids) > 0:
+    if study_ids:
         arglist.append(f"studies={','.join(study_ids)}")
-    if len(table_ids) > 0:
+    if table_ids:
         arglist.append(f"tables={','.join(table_ids)}")
-    if len(dd_ids) > 0:
+    if dd_ids:
         arglist.append(f"datadictionaries={','.join(dd_ids)}")
 
-    return locu.get(f"harmony?{'&'.join(arglist)}")
+    content = locu.get(f"harmony?{'&'.join(arglist)}")
+
+    return content
