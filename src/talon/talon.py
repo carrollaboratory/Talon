@@ -100,7 +100,7 @@ def exec(arguments: list[str] | None = None):
     init_logging(args.log_level)
 
     apiurl = None
-    token = os.getenv(MD_API_TOKEN)
+    token = os.getenv(MD_API_TOKEN, None)
     # Make sure we aren't provided both a host and a URL
     if hasattr(args, "host") and args.host is not None:
         if args.host:
@@ -111,6 +111,7 @@ def exec(arguments: list[str] | None = None):
                 logger.warning(
                     "mdhosts doesn't have api-tokens. It is recommended you update the file."
                 )
+                assert token
             else:
                 apiurl = selected_host["host"]
                 token = selected_host.get("token", token)

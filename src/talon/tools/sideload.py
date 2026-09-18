@@ -3,17 +3,21 @@ __summary__ = "Load mappings into a mapdragon instance using the API"
 __description__ = "Load mappings into a mapdragon instance using the API"
 
 import logging
-import pdb
-import sys
 from argparse import FileType
 from csv import DictReader
 from typing import TextIO
 
-import requests
-
 from .. import Locu
 
-REQUIRED_COLS = "table_id,source_variable,code,display,system,provenance".split(",")
+logger = logging.getLogger(__name__)
+REQUIRED_COLS = [
+    "table_id",
+    "source_variable",
+    "code",
+    "display",
+    "system",
+    "provenance",
+]
 
 
 def sideload_csv(locu: Locu, csvfile: TextIO, editor: str):
@@ -23,7 +27,7 @@ def sideload_csv(locu: Locu, csvfile: TextIO, editor: str):
 
     if len(missing_columns) > 0:
         msg = f"Invalid CSV header. Missing required columns: {', '.join(list(missing_columns))}"
-        logging.error(msg)
+        logger.error(msg)
         raise ValueError(msg)
 
     mappings = list(reader)
@@ -32,7 +36,7 @@ def sideload_csv(locu: Locu, csvfile: TextIO, editor: str):
     response = locu.post("SideLoad", body)
 
     if response:
-        logging.info(response)
+        logger.info(response)
 
     return len(mappings)
 
@@ -58,6 +62,6 @@ def exec(args, locu):
 
     for csv in args.mappings:
         linecount = sideload_csv(locu, csv, args.editor)
-        logging.info(
+        logger.info(
             f"'{csv.name}' with {linecount} mapping lines was successfully loaded."
         )

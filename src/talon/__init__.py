@@ -34,7 +34,7 @@ class Locu:
             logger.info(f"GET: {endpoint}")
             response = requests.get(
                 endpoint,
-                headers={"Authorization": f"Bearer: {self.token}"},
+                headers={"Authorization": f"Bearer {self.token}"},
             )
             return response.json()
 
@@ -50,7 +50,7 @@ class Locu:
             response = requests.post(
                 endpoint,
                 json=payload,
-                headers={"Authorization": f"Bearer: {self.token}"},
+                headers={"Authorization": f"Bearer {self.token}"},
             )
             response.raise_for_status()
             logger.info(response)

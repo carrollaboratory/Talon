@@ -5,32 +5,41 @@ __description__ = "Pull all harmony content from a MapDragon API for a given set
 
 import logging
 import sys
-from argparse import FileType
 from csv import DictWriter
 from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, Set, TextIO
+from typing import Any, NamedTuple
 
 from .. import Locu
 from . import pull_harmony_content
+
+logger = logging.getLogger(__name__)
 
 
 def export_harmony(
     locu: Locu,
     mapping_filename: str,
-    study_ids: List[str] = [],
-    dd_ids: List[str] = [],
-    table_ids: List[str] = [],
+    study_ids: list[str] | None = None,
+    dd_ids: list[str] | None = None,
+    table_ids: list[str] | None = None,
     format: str = "FTD",
     replacecontent: bool = False,
 ):
 
-    harmony_content = pull_harmony_content(
+    harmony_response = pull_harmony_content(
         locu, study_ids=study_ids, dd_ids=dd_ids, table_ids=table_ids, format=format
     )
+    harmony_content = harmony_response["harmony"]
+    harmony_omissions = harmony_response["omitted"]
+    if len(harmony_omissions) > 0:
+        logger.warning(
+            "one or more members of your request was not authorized for release: "
+        )
+        logger.warning(f"{', '.join(harmony_omissions.keys())}")
+
     mappings = [Mapping.from_dict(item) for item in harmony_content]
 
-    if replacecontent:
+    if not Path(mapping_filename).exists() or replacecontent:
         with Path(mapping_filename).open("wt") as outf:
             writer = DictWriter(outf, fieldnames=list(vars(mappings[0].mapping).keys()))
             writer.writeheader()
@@ -41,7 +50,7 @@ def export_harmony(
 
 class MappingResults(NamedTuple):
     mapping: "Mapping"
-    dropped: Set[str]
+    dropped: set[str]
 
 
 @dataclass
@@ -55,22 +64,22 @@ class Mapping:
     mapped_system: str
 
     # Optional Fields (Default to None)
-    study_title: Optional[str] = None
-    study_name: Optional[str] = None
-    study_id: Optional[str] = None
-    dd_name: Optional[str] = None
-    dd_id: Optional[str] = None
-    version: Optional[str] = None
-    source_description: Optional[str] = None
-    source_domain: Optional[str] = None
-    parent_varname: Optional[str] = None
-    mapping_relationship: Optional[str] = None
-    comment: Optional[str] = None
+    study_title: str | None = None
+    study_name: str | None = None
+    study_id: str | None = None
+    dd_name: str | None = None
+    dd_id: str | None = None
+    version: str | None = None
+    source_description: str | None = None
+    source_domain: str | None = None
+    parent_varname: str | None = None
+    mapping_relationship: str | None = None
+    comment: str | None = None
 
-    ignore: Optional[bool] = None
+    ignore: bool | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> MappingResults:
+    def from_dict(cls, data: dict[str, Any]) -> MappingResults:
         """Convert the basic dict into a Mapping"""
 
         cleaned_fieldnames = {k.replace(" ", "_"): v for k, v in data.items()}
@@ -85,7 +94,7 @@ class Mapping:
 
         return MappingResults(mapping=cls(**filtered_data), dropped=extra_fields)
 
-    def writerow(self, writer: TextIO):
+    def writerow(self, writer: DictWriter):
         writer.writerow(vars(self))
 
 
@@ -138,11 +147,11 @@ def add_arguments(subparsers):
 
 def exec(args, locu):
     if not hasattr(args, "host") and args.md_url is None:
-        logging.error(
-            f"You must provide either the API URL or a configured host to proceed"
+        logger.error(
+            "You must provide either the API URL or a configured host to proceed"
         )
         if len(args.host_config["hosts"]) > 0:
-            logging.error(
+            logger.error(
                 f"Available hosts include: {', '.join(args.host_config['hosts'].keys())}"
             )
         sys.exit(1)
