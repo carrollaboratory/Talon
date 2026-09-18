@@ -7,7 +7,7 @@ import sys
 from argparse import FileType
 from csv import writer as csvwriter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -70,12 +70,18 @@ class MappingLookup:
     def __init__(self, mapping_filename: str, case_insensitive: bool = True):
         self.filename = mapping_filename
         self.case_insensitive = case_insensitive
-        self.db = None
+        self._db = None
 
         self.load_mappings()
 
+    @property
+    def db(self) -> Any:
+        if self._db is None:
+            raise RuntimeError("Database not initialized")
+        return self._db
+
     def load_mappings(self):
-        self.db = duckdb.connect(database=":memory:")
+        self._db = duckdb.connect(database=":memory:")
 
         # Ideally, trigger this only if logging is set to DEBUG
         # Turning this off until I have a better understanding of what
@@ -99,8 +105,12 @@ class MappingLookup:
         )
 
     def get_mappings_levenshtein(
-        self, terms: list[str], max_distance: int = 2
+        self, terms: list[str], max_distance: float | str | None = None
     ) -> duckdb.DuckDBPyConnection:
+        if max_distance is None:
+            md = 2
+        else:
+            md = int(max_distance)
         query = """
         WITH search_terms AS (SELECT unnest(?) AS term)
         SELECT DISTINCT data.*, levenshtein(data.source_text, s.term) as distance
@@ -108,13 +118,20 @@ class MappingLookup:
         WHERE levenshtein(data.source_text, s.term) <= LEAST(?, floor(length(s.term) / 4))
         ORDER BY distance ASC
         """
-        logger.debug(query + str([terms, max_distance]))
+        logger.debug(query + str([terms, md]))
 
-        return self.db.execute(query, [terms, max_distance])
+        return self.db.execute(query, [terms, md])
 
     def get_mappings_jw(
-        self, terms: list[str], min_similarity: float
+        self, terms: list[str], min_similarity: float | str | None = None
     ) -> duckdb.DuckDBPyConnection:
+        if min_similarity is None:
+            ms = 0
+        else:
+            if type(min_similarity) == str:
+                ms = float(min_similarity)
+            else:
+                ms = min_similarity
         query = """
         WITH search_terms AS (SELECT unnest(?) AS term)
         SELECT DISTINCT
@@ -125,9 +142,9 @@ class MappingLookup:
         ORDER BY score DESC
             """
 
-        logger.debug(query + str([terms, min_similarity]))
+        logger.debug(query + str([terms, ms]))
 
-        return self.db.execute(query, [terms, min_similarity])
+        return self.db.execute(query, [terms, ms])
 
     def get_mappings_basic(
         self, terms: list[str], nocase: bool = True
@@ -149,8 +166,8 @@ class MappingLookup:
         terms: list[str],
         nocase: bool = True,
         fuzzy: str | None = None,
-        fuzzy_threshold: str | None = None,
-    ) -> dict[str, Any]:
+        fuzzy_threshold: float | str | None = None,
+    ) -> list[dict[str, Any]]:
         """Accept one or more terms and return any matching, possibly without case sensitivity"""
 
         if fuzzy:
@@ -158,6 +175,11 @@ class MappingLookup:
                 cur = self.get_mappings_levenshtein(terms, fuzzy_threshold)
             elif fuzzy == "Jaro–Winkler":
                 cur = self.get_mappings_jw(terms, fuzzy_threshold)
+            else:
+                logger.warning(
+                    f"unknown fuzzy matcher type: {fuzzy}. Defaulting to basic"
+                )
+                cur = self.get_mappings_basic(terms, nocase)
         else:
             cur = self.get_mappings_basic(terms, nocase)
 
@@ -201,7 +223,7 @@ def ReuseMappings(
     table_id: str,
     csvfile: TextIO,
     fuzzy: str | None = None,
-    fuzzy_threshold: str | None = None,
+    fuzzy_threshold: float | str | None = None,
 ) -> dict[str, Any]:
     mappings = MappingLookup(csvfile.name)
 
@@ -210,7 +232,7 @@ def ReuseMappings(
     new_mapping_content = []
     for variable in table["variables"]:
         matches = mappings.get_mappings(
-            list(set([variable["name"], variable["code"]])),
+            list(set({variable["name"], variable["code"]})),
             fuzzy=fuzzy,
             fuzzy_threshold=fuzzy_threshold,
         )
@@ -338,7 +360,7 @@ def exec(args, locu):
         sldir = project_dir / "sideload"
         sldir.mkdir(parents=True, exist_ok=True)
 
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         host = args.host if args.host else args.md_url.split("::")[-1].split(".")[0]
         slfilename = (
             sldir / f"{table_mappings['table_name']}_{host}-{table_id}_{ts}.csv"

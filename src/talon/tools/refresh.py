@@ -44,7 +44,11 @@ def sync_mapping_with_audit(csv_path: str, web_data_list: list[dict]):
         df_csv = pd.DataFrame(columns=cols)
 
     # 2. Standardize web data
-    df_web = pd.DataFrame(web_data_list).astype(str)
+    try:
+        df_web = pd.DataFrame(web_data_list).astype(str)
+    except ValueError as e:
+        logger.error(f"An error was encountered processing the data: {e}")
+        sys.exit(1)
 
     keys = ["source_text", "mapped_code"]
     # Fields where differences trigger a conflict report
@@ -142,9 +146,22 @@ def refresh_dataset(
 ):
     """Refresh the curated dataset with mappings from the specified sources"""
 
-    harmony_content = pull_harmony_content(
+    # With the authorization in place, it is possible that some requested resources
+    # are not available to the user. As such, the response will include two keys:
+    #   - harmony
+    #   - omitted
+    #
+    harmony_response = pull_harmony_content(
         locu, study_ids=study_ids, dd_ids=dd_ids, table_ids=table_ids, format="FTD"
     )
+    harmony_content = harmony_response["harmony"]
+    harmony_omissions = harmony_response["omitted"]
+
+    if len(harmony_omissions) > 0:
+        logger.warning(
+            "one or more members of your request was not authorized for release: "
+        )
+        logger.warning(f"{', '.join(harmony_omissions.keys())}")
 
     pdir = Path(project_directory)
     if not pdir.is_dir():

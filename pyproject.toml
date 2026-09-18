@@ -14,12 +14,15 @@ classifiers = [
 dependencies = [
     "requests",
     "rich",
+    "pandas",
     "rich_argparse",
     "duckdb",
     "PyYAML",
     "xxhash"]
 
 dynamic = ["version"]
+
+[tool.uv.workspace]
 
 [tool.setuptools_scm]
 version_file = "src/talon/_version.py"
