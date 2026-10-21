@@ -35,7 +35,20 @@ def export_harmony(
         logger.warning(
             "one or more members of your request was not authorized for release: "
         )
-        logger.warning(f"{', '.join(harmony_omissions.keys())}")
+        if type(harmony_omissions) is list:
+            logger.warning(harmony_omissions)
+        else:
+            logger.warning(f"{', '.join(harmony_omissions.keys())}")
+
+    if len(harmony_content) == 0:
+        logger.warning(f"""No harmony content was found:
+  study ids: {study_ids}
+  data dictionary ids: {dd_ids}
+  table ids: {table_ids}
+
+Are those valid keys for this instance of MapDragon?
+""")
+        return
 
     mappings = [Mapping.from_dict(item) for item in harmony_content]
 
@@ -158,12 +171,14 @@ def exec(args, locu):
 
     study_ids = args.study_id
     table_ids = args.table_id
+    dd_ids = args.data_dictionary_id
     dataformat = args.format
 
     export_harmony(
         locu,
         study_ids=study_ids,
         table_ids=table_ids,
+        dd_ids=dd_ids,
         mapping_filename=args.mappings,
         format=dataformat,
         replacecontent=args.replace,
