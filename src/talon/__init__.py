@@ -58,7 +58,12 @@ class Locu:
         except requests.exceptions.HTTPError as e:
             if e.response is not None:
                 err = e.response.json()
-                if "message" in err:
+                if "problems" in err:
+                    # e.g. a sideload's unrecognized mapped codes, one per row
+                    logger.error(f"{err.get('error', 'Error')}:")
+                    for problem in err["problems"]:
+                        logger.error(f"  {problem}")
+                elif "message" in err:
                     logger.error(err["message"])
                 else:
                     logger.error(f"HTTP ERROR: {e}")
