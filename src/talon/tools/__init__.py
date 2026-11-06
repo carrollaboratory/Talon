@@ -63,8 +63,8 @@ def pull_harmony_content(
     dd_ids: list[str] | None = None,
     table_ids: list[str] | None = None,
     format: str = "FTD",
-) -> dict[str, Any]:
-    """Return the harmony content in dict format"""
+) -> dict[str, Any] | list[dict[str, Any]]:
+    """Return the harmony content as returned by the API (dict or list)"""
     arglist = [f"format={format}"]
     if study_ids:
         arglist.append(f"studies={','.join(study_ids)}")
