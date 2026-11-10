@@ -29,8 +29,16 @@ def export_harmony(
     harmony_response = pull_harmony_content(
         locu, study_ids=study_ids, dd_ids=dd_ids, table_ids=table_ids, format=format
     )
-    harmony_content = harmony_response["harmony"]
-    harmony_omissions = harmony_response["omitted"]
+    if isinstance(harmony_response, list):
+        harmony_content = harmony_response
+        harmony_omissions = []
+    elif isinstance(harmony_response, dict) and "harmony" in harmony_response:
+        harmony_content = harmony_response["harmony"]
+        harmony_omissions = harmony_response.get("omitted", [])
+    else:
+        logger.error(f"Unexpected harmony response from MapDragon: {harmony_response}")
+        sys.exit(1)
+
     if len(harmony_omissions) > 0:
         logger.warning(
             "one or more members of your request was not authorized for release: "
